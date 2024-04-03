@@ -4,7 +4,7 @@ layout: BlogHome
 icon: home
 title: 博客主页
 # heroImage: https://theme-hope-assets.vuejs.press/logo.svg
-heroText: Hello
+heroText: Hello World...
 heroFullScreen: false
 tagline: 天生我材必有用
 # copyright: false

@@ -31,7 +31,7 @@ export default hopeTheme({
 
   // 博客相关
   blog: {
-    description: "干就完了",
+    description: "JUST DO IT",
     // intro: "/intro.html",
     // medias: {
     //   Baidu: "https://example.com",
