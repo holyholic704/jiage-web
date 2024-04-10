@@ -5,7 +5,7 @@ export default defineUserConfig({
   base: "/",
 
   lang: "zh-CN",
-  title: "博客",
+  title: "佳哥的博客",
   description: "佳哥的博客",
 
   theme,
