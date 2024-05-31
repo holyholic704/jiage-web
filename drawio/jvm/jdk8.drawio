@@ -1,0 +1,79 @@
+<mxfile host="Electron" modified="2024-04-10T08:27:03.022Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/22.1.2 Chrome/114.0.5735.289 Electron/25.9.4 Safari/537.36" etag="oCrrnP5yztw0xS9xOP4y" version="22.1.2" type="device">
+  <diagram name="第 1 页" id="ddQotzPlWzka4n1u_9EA">
+    <mxGraphModel dx="1562" dy="909" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+          <mxGeometry x="160" y="300" width="450" height="550" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+          <mxGeometry x="180" y="365" width="410" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="175" y="527" width="194" height="291" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-5" value="本地方法栈&lt;br&gt;Native Method Stack" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="188.25" y="731" width="169.75" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-6" value="本地内存" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="160" y="868" width="450" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-7" value="程序计数器&lt;br&gt;Program Counter Register" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="187.25" y="586" width="169.5" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-8" value="虚拟机栈&lt;br&gt;VM Stack" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="187.25" y="658.5" width="170.75" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-10" value="线程&lt;br&gt;Thread" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="243.13" y="544" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-13" value="" style="group" parent="1" vertex="1" connectable="0">
+          <mxGeometry x="400" y="527" width="194" height="291" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-14" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="vg-SopMjqNdBb8Twq4c9-13" vertex="1">
+          <mxGeometry width="194" height="291" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-15" value="本地方法栈&lt;br&gt;Native Method Stack" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="vg-SopMjqNdBb8Twq4c9-13" vertex="1">
+          <mxGeometry x="12.119999999999997" y="204" width="169.75" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-16" value="虚拟机栈&lt;br&gt;VM Stack" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="vg-SopMjqNdBb8Twq4c9-13" vertex="1">
+          <mxGeometry x="11.119999999999997" y="131.5" width="170.75" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-17" value="程序计数器&lt;br&gt;Program Counter Register" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="vg-SopMjqNdBb8Twq4c9-13" vertex="1">
+          <mxGeometry x="11.119999999999997" y="59" width="169.5" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-18" value="线程&lt;br&gt;Thread" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="vg-SopMjqNdBb8Twq4c9-13" vertex="1">
+          <mxGeometry x="67" y="17" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-22" value="" style="group" parent="1" vertex="1" connectable="0">
+          <mxGeometry x="420" y="880" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-20" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="vg-SopMjqNdBb8Twq4c9-22" vertex="1">
+          <mxGeometry width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-19" value="运行时常量池&lt;br&gt;Runtime Constant Pool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" parent="vg-SopMjqNdBb8Twq4c9-22" vertex="1">
+          <mxGeometry x="10" y="50" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-21" value="元空间&lt;br&gt;Metaspace" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="vg-SopMjqNdBb8Twq4c9-22" vertex="1">
+          <mxGeometry x="45" y="10" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-25" value="直接内存&lt;br&gt;Direct Memory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="170" y="880" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="vg-SopMjqNdBb8Twq4c9-26" value="运行时区域" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=17;" parent="1" vertex="1">
+          <mxGeometry x="290" y="320" width="190" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="44JxWdY_Hp18KIjJX5c1-2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="295" y="380" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="44JxWdY_Hp18KIjJX5c1-3" value="字符串常量池&lt;br&gt;String Constant Pool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="305" y="430" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="44JxWdY_Hp18KIjJX5c1-4" value="堆&lt;br&gt;Heap" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="340" y="390" width="90" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

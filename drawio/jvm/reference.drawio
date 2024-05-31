@@ -1,0 +1,55 @@
+<mxfile host="Electron" modified="2023-12-19T10:38:47.271Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/22.1.2 Chrome/114.0.5735.289 Electron/25.9.4 Safari/537.36" etag="BU-8t_0YY5dt5il86aIi" version="22.1.2" type="device">
+  <diagram name="第 1 页" id="9ugmXxQEpvY31FWD7Llz">
+    <mxGraphModel dx="1562" dy="909" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF6666;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="185" y="340" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9999;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="320" y="340" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-5" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCCCC;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="454" y="340" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-6" value="" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="588" y="340" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-7" value="强引用" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="215" y="360" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-8" value="只要引用关系在，就不会被回收" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="185" y="400" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-9" value="软引用" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="350" y="360" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-10" value="弱引用" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="484" y="360" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-11" value="虚引用" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="618" y="360" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-12" value="垃圾收集后仍没有足够的空间，就会被回收" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="320" y="400" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-13" value="无论内存空间是否充足，垃圾收集时都会被回收" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="459" y="400" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-14" value="随时被回收" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="600" y="400" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-19" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0;dx=10;notch=10;gradientColor=#FF6666;gradientDirection=west;" parent="1" vertex="1">
+          <mxGeometry x="185" y="290" width="525" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-20" value="强" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="185" y="290" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="OL_Xt2Pnlh9DrkyQYXxn-21" value="弱" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="648" y="290" width="60" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
