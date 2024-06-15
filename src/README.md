@@ -3,10 +3,10 @@ home: true
 layout: BlogHome
 icon: home
 title: 博客主页
-# heroImage: https://theme-hope-assets.vuejs.press/logo.svg
-heroText: Hello World...
+bgImage: doro.png
+heroText: SO JUST DO IT!
 heroFullScreen: false
-tagline: 天生我材必有用
+tagline: JUST DO IT
 # copyright: false
 # projects:
 #   - icon: project

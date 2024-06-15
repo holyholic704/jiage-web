@@ -17,7 +17,8 @@ export default hopeTheme({
 
   iconAssets: "fontawesome-with-brands",
 
-  // logo: "https://theme-hope-assets.vuejs.press/logo.svg",
+  logo: "doro.gif",
+  favicon: "minidoro.png",
 
   repo: "https://github.com/holyholic704",
 
@@ -35,7 +36,7 @@ export default hopeTheme({
 
   // 博客相关
   blog: {
-    description: "JUST DO IT",
+    description: "DORO DORO DORO",
     // intro: "/intro.html",
     // medias: {
     //   Baidu: "https://example.com",
