@@ -17,7 +17,7 @@ export default hopeTheme({
 
   iconAssets: "fontawesome-with-brands",
 
-  logo: "doro.gif",
+  logo: "colorfuldoro.gif",
   favicon: "minidoro.png",
 
   repo: "https://github.com/holyholic704",
