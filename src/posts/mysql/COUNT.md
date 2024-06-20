@@ -1,7 +1,6 @@
 ---
 date: 2024-06-03
 category:
-  - MySQL
   - 数据库
 tag:
   - MySQL
