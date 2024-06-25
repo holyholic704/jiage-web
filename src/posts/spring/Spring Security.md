@@ -184,8 +184,10 @@ public interface AuthenticationManager {
 ```java
 public interface AuthenticationProvider {
 
+    // 身份验证
     Authentication authenticate(Authentication authentication) throws AuthenticationException;
 
+    // 判断当前的Provider是否适用于该类型的验证
     boolean supports(Class<?> authentication);
 }
 ```
@@ -481,10 +483,42 @@ CorsConfigurationSource corsConfigurationSource() {
 }
 ```
 
-## CSRF
+## CSRF（Cross-site request forgery，跨站请求伪造）
 
-请解释CSRF攻击是什么，以及Spring Security如何防御这种攻击？
-请描述在Spring Security中如何实施CSRF（跨站请求伪造）保护。
+CSRF 利用的是网站对用户网页浏览器的信任，攻击者通过某些技术手段，欺骗用户的浏览器去访问一个认证过的网站并执行一些操作
+
+- CSRF 并不能直接获取用户的账户控制权和信息，他能做是欺骗用户的浏览器，让其以用户的名义执行操作
+
+例如在恶意网站在某个图片的地址中，加入跳转到已认证网站的链接并附带恶意参数
+
+```html
+<img src="https://www.example.com/index.php?action=delete&id=123" />
+```
+
+CSRF 利用的是自动的身份验证，浏览器会随着所有请求发送 Cookie，如果不使用 Cookie，也不依赖 Cookie 进行身份验证，那么 CSRF 攻击也就不存在了，只要身份验证不是自动的即可
+
+Spring Security 默认是开启 CSRF 防护的，用户登录时会发放一个 CSRF Token，之后的每个请求过来都需附带一个 CSRF Token，当然更推荐的是关闭 CSRF 防护，转而使用无状态的 JWT
+
+另外别忘了验证请求的合法性，例如使用数字签名、时间戳等。请求头中有个 Referer 字段，表示当前请求的来源页面，从 A 网站访问 B 网站的页面，Referer 指向的就是 A，后端可通过此字段过滤不合法的请求
+
+## XSS（Cross-site scripting，跨站脚本）
+
+利用网页开发时留下的漏洞，通过巧妙的方法注入恶意指令代码到网页，使用户加载并执行攻击者恶意制造的网页程序，通常利用的是 JavaScript，也会有一些通过 Flash、HTML 等的手段
+
+XSS 可分为 3 类
+
+- 存储型：攻击者将恶意脚本保存到服务器或数据库中（例如在提交的表单中假如恶意脚本，提交时后端没有过滤掉），在用户访问被污染的页面时触发
+  - 这种方式具有持久性和稳定性，能长期的影响用户
+- 反射型：诱导用户点击恶意链接、提交表单，访问恶意网站等，注入脚本到被攻击的页面
+- DOM 型：攻击者通过篡改页面的 DOM 结构来触发恶意脚本的执行
+  - 较为隐蔽
+
+与 CSRF 的区别
+
+- XSS 是通过在被攻击网站注入恶意脚本实现的；CSRF 是通过已认证用户访问攻击者网站实现的
+- XSS 目的是获取用户信息，操纵用户执行一些恶意操作；CSRF 不获取用户的信息和账号控制权，目的是向被攻击网站发出恶意请求
+
+最有效的防护手段就是做好请求的校验，永远不要相信任何请求的的任何参数
 
 ## 会话固定攻击
 
@@ -517,3 +551,11 @@ CorsConfigurationSource corsConfigurationSource() {
 - [跨源资源共享（CORS）](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS)
 - [什么时候会发送options请求](https://juejin.cn/post/6844903821634699277)
 - [同源策略是怎么预防攻击的？跨域的代码实现、原理和漏洞？](https://juejin.cn/post/7208018784073629752)
+- [Should I use CSRF protection on Rest API endpoints?](https://security.stackexchange.com/questions/166724/should-i-use-csrf-protection-on-rest-api-endpoints/166798)
+- [Do I need CSRF token if I'm using Bearer JWT?](https://security.stackexchange.com/questions/170388/do-i-need-csrf-token-if-im-using-bearer-jwt)
+- [跨站请求伪造](https://zh.wikipedia.org/wiki/%E8%B7%A8%E7%AB%99%E8%AF%B7%E6%B1%82%E4%BC%AA%E9%80%A0)
+- [跨站请求伪造](https://developer.mozilla.org/zh-CN/docs/Glossary/CSRF)
+- [SpringSecurity（10）——Csrf防护](https://blog.csdn.net/peng_gx/article/details/135714325)
+- [CSRF 详解：攻击，防御，Spring Security应用等](https://www.cnblogs.com/pengdai/p/12164754.html)
+- [跨站脚本](https://zh.wikipedia.org/wiki/%E8%B7%A8%E7%B6%B2%E7%AB%99%E6%8C%87%E4%BB%A4%E7%A2%BC)
+- [XSS 和 CSRF 攻击详解](https://juejin.cn/post/6945277278347591688)
