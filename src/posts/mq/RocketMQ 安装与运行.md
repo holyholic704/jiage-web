@@ -90,7 +90,153 @@ tail -f ~/logs/rocketmqlogs/proxy.log
 
 记得放开 10912、10911、10909 这 3 个端口
 
+## 与 Spring Boot 整合
+
+引入依赖
+
+```xml
+<dependency>
+    <groupId>org.apache.rocketmq</groupId>
+    <artifactId>rocketmq-spring-boot-starter</artifactId>
+    <version>2.3.0</version>
+</dependency>
+```
+
+添加配置文件
+
+```yaml
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: my-group
+```
+
+添加配置类
+
+```java
+@Configuration
+public class RocketConfig {
+
+    @Value("${rocketmq.name-server}")
+    private String nameServer;
+
+    @Value("${rocketmq.producer.group}")
+    private String producerGroup;
+
+    @Bean
+    RocketMQTemplate rocketmqTemplate() {
+        RocketMQTemplate rocketMQTemplate = new RocketMQTemplate();
+        DefaultMQProducer defaultMQProducer = new DefaultMQProducer();
+        defaultMQProducer.setNamesrvAddr(nameServer);
+        defaultMQProducer.setProducerGroup(producerGroup);
+        rocketMQTemplate.setProducer(defaultMQProducer);
+        return rocketMQTemplate;
+    }
+}
+```
+
+编写生产者
+
+```java
+@RestController
+public class TestController {
+
+    @Autowired
+    private RocketMQTemplate rocketmqTemplate;
+
+    @GetMapping("send")
+    public String send(@RequestParam String topic, @RequestParam String msg) {
+        Message<String> message = MessageBuilder.withPayload(msg).build();
+        rocketmqTemplate.send(topic, message);
+        return "SUCCESS";
+    }
+}
+```
+
+也可以选择直接使用 DefaultMQProducer
+
+```java
+@Component
+public class TestProducer implements ApplicationRunner {
+
+    @Value("${rocketmq.name-server}")
+    private String nameServer;
+
+    @Value("${rocketmq.producer.group}")
+    private String producerGroup;
+
+    private DefaultMQProducer defaultMQProducer = new DefaultMQProducer();
+
+    public void init() throws MQClientException {
+        defaultMQProducer.setProducerGroup(producerGroup);
+        defaultMQProducer.setNamesrvAddr(nameServer);
+        defaultMQProducer.start();
+        System.out.println("启动");
+    }
+
+    public void send(String topic, String message) throws MQBrokerException, RemotingException, InterruptedException, MQClientException {
+        Message msg = new Message(topic, message.getBytes());
+        defaultMQProducer.send(msg);
+    }
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        init();
+    }
+}
+```
+
+编写消费者，实现 RocketMQListener 接口，并添加 RocketMQMessageListener 注解
+
+```java
+@Component
+@RocketMQMessageListener(topic = "nice", consumerGroup = "ah-yeah")
+public class TestConsumer implements RocketMQListener<String> {
+
+    @Override
+    public void onMessage(String message) {
+        System.out.println(message);
+    }
+}
+```
+
+当然也可以选择直接使用 DefaultMQPushConsumer
+
+```java
+@Component
+public class ManualConsumer implements ApplicationRunner {
+
+    @Value("${rocketmq.name-server}")
+    private String nameServer;
+
+    private final DefaultMQPushConsumer consumer = new DefaultMQPushConsumer();
+
+    public void init() throws MQClientException {
+        consumer.setNamesrvAddr(nameServer);
+        consumer.setConsumerGroup("ah-yeah");
+        consumer.subscribe(MQConstant.NICE, "*");
+        consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {
+            for (MessageExt messageExt : msg) {
+                System.out.println(new String(messageExt.getBody()));
+            }
+            return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+        });
+        consumer.start();
+        System.out.println("启动");
+    }
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        init();
+    }
+}
+```
+
 ## 参考
 
 - [Docker 部署 RocketMQ](https://rocketmq.apache.org/zh/docs/quickStart/02quickstartWithDocker)
 - [腾讯云部署RocketMQ，connect to 10911 failed](https://blog.csdn.net/lifuma/article/details/91129573)
+- [SpringBoot集成RocketMQ实现三种消息发送方式](https://blog.csdn.net/m0_37999219/article/details/131109507)
+- [RocketMQ笔记（二）SpringBoot整合RocketMQ发送异步消息](https://blog.csdn.net/Alian_1223/article/details/136591837)
+- [SpringBoot整合RocketMQ，老鸟们都是这么玩的！](https://www.cnblogs.com/jianzh5/p/17301690.html)
+- [Springboot整合RocketMQ简单使用](https://www.cnblogs.com/qlqwjy/p/16175864.html)
