@@ -88,12 +88,39 @@ RocketMQ 的服务节点，即 RocketMQ 服务器
 
 可以看做子主题，可以为主题添加额外的标识
 
-## Offset
+### Offset
 
-每条消息在队列中都有一个唯一的坐标，这个坐标
+Offset 是消息在 MessageQueue 中的唯一坐标，这个坐标被定义为 **消息位点**，每个 MessageQueue 都有自己独立的 Offset
 
+![](./md.assets/offset.png)
 
+<small>[消费进度管理 - 消费进度原理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)</small>
 
+RocketMQ 定义队列中最早一条消息的位点为 **最小消息位点（MinOffset）**，最新一条消息的位点为 **最大消息位点（MaxOffset）**
+
+虽然消息队列逻辑上是无限存储，但由于服务端物理节点的存储空间有限，RocketMQ 会滚动删除队列中存储最早的消息。因此，消息的最小消费位点和最大消费位点会一直递增变化
+
+![](./md.assets/minoffset_maxoffset.png)
+
+<small>[消费进度管理 - 消费进度原理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)</small>
+
+#### ConsumerOffset（消费位点）
+
+RocketMQ 中某条消息被消费后，并不会直接删除，所以也就无法通过 MinOffset 确定消费进度，于是为了保存消费进度，RocketMQ 为每个 MessageQueue 维护了一个消费位点
+
+- 消费位点指向的 **已被消费** 的最新一条消息
+
+![](./md.assets/consumeroffset.png)
+
+<small>[消费进度管理 - 消费进度原理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)</small>
+
+#### 消费者提交进度
+
+在广播消费模式消费者不会提交消费进度给到 Broker，仅会持久化到本地磁盘
+
+在集群消费模式下，消费者消费完消息后，会将消费进度提交给 Broker，也就是让 Broker 去更新 ConsumerOffset
+
+- 消费者提交的消费进度是以消费者组为单位的
 
 ## 消息模式
 
@@ -126,7 +153,291 @@ RocketMQ 同时支持推模式和拉模式，而且 RocketMQ 的推模式实际�
 - 未消费的消息数量过多
 - 未消费的消息占用过大
 
-消费者每次发起请求，会出现两种情况，一种是队列中有消息，那就拿到消息并消费，并且开始下一次请求，如此循环往复；另一种呢是队列中没消息，队列就将该次请求保持住，不终止也不返回，等到队列中有消息时，再通过该请求返回回去
+```java
+// 消息队列缓存满时，延迟执行的间隔时间
+private static final long PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL = 50;
+
+// 未消费的消息数量
+long cachedMessageCount = processQueue.getMsgCount().get();
+// 未消费的消息大小
+long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
+
+// 大于 1000
+if (cachedMessageCount > defaultLitePullConsumer.getPullThresholdForQueue()) {
+    scheduledThreadPoolExecutor.schedule(this, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL, TimeUnit.MILLISECONDS);
+    if ((queueFlowControlTimes++ % 1000) == 0) {
+        log.warn(
+                "The cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, flowControlTimes={}",
+                defaultLitePullConsumer.getPullThresholdForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, queueFlowControlTimes);
+    }
+    return;
+}
+
+// 大于 100 MB
+if (cachedMessageSizeInMiB > defaultLitePullConsumer.getPullThresholdSizeForQueue()) {
+    scheduledThreadPoolExecutor.schedule(this, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL, TimeUnit.MILLISECONDS);
+    if ((queueFlowControlTimes++ % 1000) == 0) {
+        log.warn(
+                "The cached message size exceeds the threshold {} MiB, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, flowControlTimes={}",
+                defaultLitePullConsumer.getPullThresholdSizeForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, queueFlowControlTimes);
+    }
+    return;
+}
+```
+
+消费者每次发起请求，会出现两种情况，一种是队列中有消息，那就拿到消息并消费，并且开始下一次请求，如此循环往复；另一种呢是队列中没消息，队列就将该次请求保持住（默认 15 秒），不终止也不返回，直到队列中有消息时或者请求超时，再将结果响应回去
+
+```java
+public class DefaultPullMessageResultHandler implements PullMessageResultHandler {
+
+    ...
+
+    @Override
+    public RemotingCommand handle(final GetMessageResult getMessageResult,
+        final RemotingCommand request,
+        final PullMessageRequestHeader requestHeader,
+        final Channel channel,
+        final SubscriptionData subscriptionData,
+        final SubscriptionGroupConfig subscriptionGroupConfig,
+        final boolean brokerAllowSuspend,
+        final MessageFilter messageFilter,
+        RemotingCommand response,
+        TopicQueueMappingContext mappingContext,
+        long beginTimeMills) {
+        
+        ...
+
+        switch (response.getCode()) {
+            
+            ...
+
+            // 本次没有拉取到消息
+            case ResponseCode.PULL_NOT_FOUND:
+                final boolean hasSuspendFlag = PullSysFlag.hasSuspendFlag(requestHeader.getSysFlag());
+                final long suspendTimeoutMillisLong = hasSuspendFlag ? requestHeader.getSuspendTimeoutMillis() : 0;
+
+                // 当前 Broker 是否允许挂起，并且当前请求是否允许挂起
+                if (brokerAllowSuspend && hasSuspendFlag) {
+                    // 拉取请求中携带的挂起超时时间
+                    // 默认为 15 秒
+                    long pollingTimeMills = suspendTimeoutMillisLong;
+                    // 如果没有开启长轮询（默认开启），就使用短轮询
+                    // 默认为 1 秒
+                    if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
+                        pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();
+                    }
+
+                    String topic = requestHeader.getTopic();
+                    long offset = requestHeader.getQueueOffset();
+                    int queueId = requestHeader.getQueueId();
+                    PullRequest pullRequest = new PullRequest(request, channel, pollingTimeMills,
+                        this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
+                    // 将当前的拉取请求加入挂起列表中
+                    this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
+                    return null;
+                }
+
+                ...
+
+        }
+
+        ....
+
+}
+```
+
+```java
+public class PullRequestHoldService extends ServiceThread {
+
+    ...
+
+    protected ConcurrentMap<String/* topic@queueId */, ManyPullRequest> pullRequestTable =
+        new ConcurrentHashMap<>(1024);
+
+    public void suspendPullRequest(final String topic, final int queueId, final PullRequest pullRequest) {
+        String key = this.buildKey(topic, queueId);
+        ManyPullRequest mpr = this.pullRequestTable.get(key);
+        if (null == mpr) {
+            mpr = new ManyPullRequest();
+            ManyPullRequest prev = this.pullRequestTable.putIfAbsent(key, mpr);
+            if (prev != null) {
+                mpr = prev;
+            }
+        }
+
+        pullRequest.getRequestCommand().setSuspended(true);
+        mpr.addPullRequest(pullRequest);
+    }
+
+    @Override
+    public void run() {
+        log.info("{} service started", this.getServiceName());
+        while (!this.isStopped()) {
+            try {
+                // 判断当前 Broker 是否支持长轮询
+                // 支持长轮询就等待 5 秒，不支持就等待 1 秒
+                if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
+                    this.waitForRunning(5 * 1000);
+                } else {
+                    this.waitForRunning(this.brokerController.getBrokerConfig().getShortPollingTimeMills());
+                }
+
+                long beginLockTimestamp = this.systemClock.now();
+                this.checkHoldRequest();
+                long costTime = this.systemClock.now() - beginLockTimestamp;
+                if (costTime > 5 * 1000) {
+                    log.warn("PullRequestHoldService: check hold pull request cost {}ms", costTime);
+                }
+            } catch (Throwable e) {
+                log.warn(this.getServiceName() + " service has exception. ", e);
+            }
+        }
+
+        log.info("{} service end", this.getServiceName());
+    }
+
+    // 检查挂起的线程
+    protected void checkHoldRequest() {
+        for (String key : this.pullRequestTable.keySet()) {
+            // topic@queueId
+            String[] kArray = key.split(TOPIC_QUEUEID_SEPARATOR);
+            if (2 == kArray.length) {
+                String topic = kArray[0];
+                int queueId = Integer.parseInt(kArray[1]);
+                final long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
+                try {
+                    this.notifyMessageArriving(topic, queueId, offset);
+                } catch (Throwable e) {
+                    log.error(
+                        "PullRequestHoldService: failed to check hold request failed, topic={}, queueId={}", topic,
+                        queueId, e);
+                }
+            }
+        }
+    }
+
+    public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset) {
+        notifyMessageArriving(topic, queueId, maxOffset, null, 0, null, null);
+    }
+
+    public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset, final Long tagsCode,
+        long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
+        String key = this.buildKey(topic, queueId);
+        ManyPullRequest mpr = this.pullRequestTable.get(key);
+        if (mpr != null) {
+            List<PullRequest> requestList = mpr.cloneListAndClear();
+            if (requestList != null) {
+                // 需要进行回复的请求
+                List<PullRequest> replayList = new ArrayList<>();
+
+                for (PullRequest request : requestList) {
+                    long newestOffset = maxOffset;
+                    if (newestOffset <= request.getPullFromThisOffset()) {
+                        newestOffset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
+                    }
+
+                    // 队列中是否有新消息
+                    if (newestOffset > request.getPullFromThisOffset()) {
+                        // 过滤消息
+                        boolean match = request.getMessageFilter().isMatchedByConsumeQueue(tagsCode,
+                            new ConsumeQueueExt.CqExtUnit(tagsCode, msgStoreTime, filterBitMap));
+                        // match by bit map, need eval again when properties is not null.
+                        if (match && properties != null) {
+                            match = request.getMessageFilter().isMatchedByCommitLog(null, properties);
+                        }
+
+                        if (match) {
+                            try {
+                                // 执行请求，响应结果
+                                this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(request.getClientChannel(),
+                                    request.getRequestCommand());
+                            } catch (Throwable e) {
+                                log.error(
+                                    "PullRequestHoldService#notifyMessageArriving: failed to execute request when "
+                                        + "message matched, topic={}, queueId={}", topic, queueId, e);
+                            }
+                            continue;
+                        }
+                    }
+
+                    // 如果等待超时，15 秒
+                    if (System.currentTimeMillis() >= (request.getSuspendTimestamp() + request.getTimeoutMillis())) {
+                        try {
+                            // 执行请求，响应结果
+                            this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(request.getClientChannel(),
+                                request.getRequestCommand());
+                        } catch (Throwable e) {
+                            log.error(
+                                "PullRequestHoldService#notifyMessageArriving: failed to execute request when time's "
+                                    + "up, topic={}, queueId={}", topic, queueId, e);
+                        }
+                        continue;
+                    }
+
+                    replayList.add(request);
+                }
+
+                if (!replayList.isEmpty()) {
+                    mpr.addPullRequest(replayList);
+                }
+            }
+        }
+    }
+
+    ...
+
+}
+```
+
+```java
+public class PullMessageProcessor implements NettyRequestProcessor {
+
+    ...
+
+    public void executeRequestWhenWakeup(final Channel channel, final RemotingCommand request) {
+        Runnable run = () -> {
+            try {
+                boolean brokerAllowFlowCtrSuspend = !(request.getExtFields() != null && request.getExtFields().containsKey(ColdDataPullRequestHoldService.NO_SUSPEND_KEY));
+                final RemotingCommand response = PullMessageProcessor.this.processRequest(channel, request, false, brokerAllowFlowCtrSuspend);
+
+                if (response != null) {
+                    response.setOpaque(request.getOpaque());
+                    response.markResponseType();
+                    try {
+                        NettyRemotingAbstract.writeResponse(channel, request, response, future -> {
+                            if (!future.isSuccess()) {
+                                LOGGER.error("processRequestWrapper response to {} failed", channel.remoteAddress(), future.cause());
+                                LOGGER.error(request.toString());
+                                LOGGER.error(response.toString());
+                            }
+                        });
+                    } catch (Throwable e) {
+                        LOGGER.error("processRequestWrapper process request over, but response failed", e);
+                        LOGGER.error(request.toString());
+                        LOGGER.error(response.toString());
+                    }
+                }
+            } catch (RemotingCommandException e1) {
+                LOGGER.error("excuteRequestWhenWakeup run", e1);
+            }
+        };
+        this.brokerController.getPullMessageExecutor().submit(new RequestTask(run, channel, request));
+    }
+
+    ...
+    
+}
+```
+
+## 一致性
+
+一致性是指一条消息消息是否能够被正确地发送和接收，不会出现丢失或重复的情况
+
+- At Least Once（至少一次）：保证消息至少被传递一次，但允许重复
+- At Most Once（至多一次）：保证消息最多被传递一次，但不保证一定被传递
+- Exactly Once（精确一次）：既保证消息不丢失，又保证消息不重复，是最高级别的语义
+
+RocketMQ 的选择是 At Least Once
 
 ## 消息丢失
 
@@ -143,6 +454,8 @@ RocketMQ 同时支持推模式和拉模式，而且 RocketMQ 的推模式实际�
 如果消息发送过程中出现网络故障等情况，就会导致消息丢失
 
 要保证该阶段的消息不丢失，只需添加请求确认机制。只要发送成功，就返回响应信息，异步发送也可在回调函数中检查，发送失败或超时，生产者可以重试发送消息，建议重试次数不要过多
+
+- 如果重试次数超过最大值，可考虑将异常消息存入日志或数据库中，由人工介入排查问题，进行手工重试
 
 ```java
 // 同步发送，重试次数，默认为 2
@@ -218,21 +531,137 @@ consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) ->
 });
 ```
 
-- 注意要在代码逻辑中限制重试次数
+- 注意要在代码逻辑中限制重试次数，可考虑将异常消息存入日志或数据库中，由人工介入排查问题，进行手工重试
 
 ## 重复消费
 
+RocketMQ 选择的一致性语义是 At Least Once，保证消息一定会被传递，但可能会有重复
+
+最好的解决方式就是幂等设计，保证多次执行的结果一致。主要有两种解决方案
+
+- 在业务层面保证重复消费的结果是一致的
+- 使用缓存（Redis）等手段，过滤掉重复的消息
+
 ## 顺序消费
 
-## 消息堆积
+顺序消费又可分为两种
+
+- 全局顺序：某个主题下所有的消息都要保证顺序
+  - A1 -> B1 -> C1 -> A2 -> B2 -> C2
+- 部分顺序：只要保证每一组消息是按照顺序消费的，中间可以穿插别的消息
+  - A1 -> A2 -> B2 -> C2 -> B1 -> C1
+
+全局顺序很好实现，只建一个生产者和消费者，并将主题内的队列数设置为 1，但吞吐量和系统的可靠性就没法保证了
+
+![](./md.assets/global_order.png)
+
+<small>[面渣逆袭：RocketMQ二十三问 - 全局顺序消息](https://mp.weixin.qq.com/s/IvBt3tB_IWZgPjKv5WGS4A)</small>
+
+### 部分顺序
+
+部分顺序的思路就是将不同组的消息发送到不同的队列中，因为队列具有天然的有序性，然后保证发送时和消费时的有序性
+
+- 生产者，最好保证单线程执行，或者多线程下顺序执行（还不如就使用单线程）
+
+```java
+// topic: 主题
+// messgae: 消息
+// id: 可以是任何类型的任何值
+public void send(String topic, String message, Long id) throws MQBrokerException, RemotingException, InterruptedException, MQClientException {
+    Message msg = new Message(topic, message.getBytes());
+
+    // 实现一个消息队列的选择器
+    defaultMQProducer.send(msg, new MessageQueueSelector() {
+        @Override
+        public MessageQueue select(List<MessageQueue> mqs, Message msg, Object arg) {
+            // 根据传入的 id 选择对应的队列
+            return mqs.get((int) (id % mqs.size()));
+        }
+    }, id, new SendCallback() {
+        @Override
+        public void onSuccess(SendResult sendResult) {
+            System.out.println("成功了");
+        }
+
+        @Override
+        public void onException(Throwable e) {
+            System.out.println("失败了");
+            System.out.println(e.getMessage());
+        }
+    });
+}
+```
+
+- 消费者，最好使用 ORDERLY 的消费模式
+
+```java
+consumer.registerMessageListener((MessageListenerOrderly) (msg, context) -> {
+    for (MessageExt messageExt : msg) {
+        System.out.println(new String(messageExt.getBody()));
+    }
+    return ConsumeOrderlyStatus.SUCCESS;
+});
+```
+
+## 消息积压
+
+消息队列中的消息无法及时处理和消费，导致队列中消息累积过多
+
+- 消息不能及时消费，导致任务不能及时处理
+- 消费者处理大量的消息任务，导致系统性能下降、延迟增加以及资源消耗过高
+
+关于消息积压的出现，最粗粒度的原因，只有 2 种
+
+- 生产者发送速度过快
+- 消费者消费速度过慢
+
+### 处理方案
+
+首先找到问题源头，是生产者还是消费者的原因，再去寻找具体原因。如果一时半会找不到原因或者解决方案比较耗时，就可先进行疏导工作
+
+可以尝试停止所有消费者，或增加消费者的数量、队列数量，临时的缓解积压现象。考虑是否丢弃一些重要性不高的消息，或者考虑服务器的扩容
+
+- 监控与告警：建立监控和告警机制，及时发现消息积压的情况并采取相应的措施
+- 消费者优化
+  - 优化消费端的逻辑：检查消费逻辑是否存在性能瓶颈或不必要的复杂计算
+  - 增加消费者数量
+- 生产者优化
+  - 批量发送
+  - 避免发送过大的消息
+  - 设置消息的优先级：根据消息的重要性和紧急程度，调整消息的优先级。优先处理重要的消息，确保关键业务的及时性，而对于非关键的消息可以进行降级处理或延后处理
+- 消息过滤：过滤一些重复的、不重要的消息
+- 增加队列数量
+- 定期清理过期和无效的消息：避免队列中存在大量无效的消息占用资源
 
 ## 延迟消息
 
+消息被发送以后，并不想让消费者立刻获取，而是等待特定的时间后，消费者才能获取这个消息
+
+```java
+Message msg = new Message(topic, message.getBytes());
+// 延时 1 秒
+msg.setDelayTimeSec(1);
+// 延时 1 毫秒
+msg.setDelayTimeMs(1);
+// 延时级别
+msg.setDelayTimeLevel(1);
+```
+
+![](./md.assets/delay_level.png)
+
+<small>[延迟消息发送 - 延时消息约束](https://rocketmq.apache.org/zh/docs/4.x/producer/04message3/)</small>
+
 ## 事务消息
 
-## 消息过滤
+## 高性能 / 高吞吐量
 
-## 限流
+## 存储机制
+
+## 死信队列
+
+由于某些原因消息无法被正确地投递，为了确保消息不会被无故地丢弃，一般会将其放入死信队列
+
+后续就可以通过消费这个死信队列中的内容，来分析当时遇到的异常情况，进而可以改善和优化系统
 
 ## 参考
 
@@ -242,4 +671,11 @@ consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) ->
 - [一万字带你吃透RocketMQ](https://mp.weixin.qq.com/s/VzLsLuHVFYwapCuPBfPTVg)
 - [RocketMQ的push消费方式实现的太聪明了](https://mp.weixin.qq.com/s/opqRf8UjI9rRW_4befWrbA)
 - [面试官再问我如何保证 RocketMQ 不丢失消息,这回我笑了！](https://www.cnblogs.com/goodAndyxublog/p/12563813.html)
-- []()
+- [【阅读笔记】rocketmq 特性实现 —— 拉取消息长轮询](https://miludeer.github.io/2019/06/07/source-note-rocket-mq-features-long-polling/)
+- [队列（MessageQueue）](https://rocketmq.apache.org/zh/docs/domainModel/03messagequeue)
+- [消费进度管理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)
+- [消息积压的处理](https://www.cnblogs.com/chjxbt/p/11434240.html)
+- [线上消息队列发生积压，如何快速解决？](https://juejin.cn/post/7327124869921636367)
+- [MQ消息积压处理方案](https://www.cnblogs.com/yangyongjie/p/17644874.html)
+- [消息消费失败如何处理？](https://www.51cto.com/article/647598.html)
+- [面试必考：怎样解决线上消息队列积压问题](https://mp.weixin.qq.com/s/w5z25rKxFXOnqakOm2zgMw)
