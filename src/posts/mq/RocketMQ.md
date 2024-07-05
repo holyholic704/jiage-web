@@ -22,6 +22,14 @@ Broker 在启动时会将自己的信息注册到 NameServer，生产者和消�
 
 另外，为了保证系统的高可用，系统中可能会有多个 Broker，维护工作的复杂程度也大大上升的，如果仍旧是直连的状态，修改一个 Broker，就要修改对应的多个生产者和消费者，累不累啊
 
+#### 为什么不使用 Zookeeper 作为注册中心
+
+- Zookeeper 侧重与一致性，RocketMQ 侧重于可用性
+- Zookeeper 相对较重，RocketMQ 不需要那么多功能，也只需维护少量的信息
+- NameServer 是无状态的，扩展性很好
+- Broker 集群可以自己实现主从切换，不需要依赖其他插件
+- 引入 Zookeeper 后，还需要对其进行维护
+
 #### 高可用
 
 NameServer 这么重要，如果挂了，后果岂不是不可设想，如何保证 NameServer 的高可用呢？很简单，一个不行，就多部署几个 NameServer
@@ -74,13 +82,16 @@ RocketMQ 的服务节点，即 RocketMQ 服务器
 
 ### MessageQueue
 
-- 一个主题可以有一个或多个队列
+队列是 RocketMQ 中消息存储和传输的实际容器，也是最小存储单元
+
+- 一个主题至少有一个队列
 - 同一主题下的不同队列包含的消息是不同的
+  - 即一条消息存在于主题内的某一个队列中
 - 同一个主题下的队列可以分布在不同的 Broker 上
 
 ![](./md.assets/messagequeue.png)
 
-<small>[队列（MessageQueue）](https://rocketmq.apache.org/zh/docs/domainModel/03messagequeue)</small>
+<small>[队列（MessageQueue） - 模型关系](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/message-queues)</small>
 
 > 其实也就是 Kafka 中的 Partition
 
@@ -94,7 +105,7 @@ Offset 是消息在 MessageQueue 中的唯一坐标，这个坐标被定义为 *
 
 ![](./md.assets/offset.png)
 
-<small>[消费进度管理 - 消费进度原理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)</small>
+<small>[消费进度管理 - 消费进度原理](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/consumer-progress-management)</small>
 
 RocketMQ 定义队列中最早一条消息的位点为 **最小消息位点（MinOffset）**，最新一条消息的位点为 **最大消息位点（MaxOffset）**
 
@@ -102,7 +113,7 @@ RocketMQ 定义队列中最早一条消息的位点为 **最小消息位点（Mi
 
 ![](./md.assets/minoffset_maxoffset.png)
 
-<small>[消费进度管理 - 消费进度原理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)</small>
+<small>[消费进度管理 - 消费进度原理](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/consumer-progress-management)</small>
 
 #### ConsumerOffset（消费位点）
 
@@ -112,7 +123,7 @@ RocketMQ 中某条消息被消费后，并不会直接删除，所以也就无�
 
 ![](./md.assets/consumeroffset.png)
 
-<small>[消费进度管理 - 消费进度原理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)</small>
+<small>[消费进度管理 - 消费进度原理](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/consumer-progress-management)</small>
 
 #### 消费者提交进度
 
@@ -559,9 +570,13 @@ RocketMQ 选择的一致性语义是 At Least Once，保证消息一定会被传
 
 ### 部分顺序
 
+![](./md.assets/orderly_consume.png)
+
+<small>[顺序消息 - 如何保证消息的顺序性](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/ordered-messages-1)</small>
+
 部分顺序的思路就是将不同组的消息发送到不同的队列中，因为队列具有天然的有序性，然后保证发送时和消费时的有序性
 
-- 生产者，最好保证单线程执行，或者多线程下顺序执行（还不如就使用单线程）
+- 生产者，最好保证单线程执行，或者保证能在多线程环境下顺序执行（还不如就使用单线程）
 
 ```java
 // topic: 主题
@@ -593,6 +608,7 @@ public void send(String topic, String message, Long id) throws MQBrokerException
 ```
 
 - 消费者，最好使用 ORDERLY 的消费模式
+  - 建议使用推模式，因为推是按照存储顺序一条一条推的，而拉模式有可能一次会拉取多条消息，需要在业务中做额外处理
 
 ```java
 consumer.registerMessageListener((MessageListenerOrderly) (msg, context) -> {
@@ -653,15 +669,147 @@ msg.setDelayTimeLevel(1);
 
 ## 事务消息
 
+事务消息是一种确保消息在分布式系统中被完整发送或完全失败的消息传递机制。在普通消息基础上，将二阶段提交和本地事务绑定，保证本地事务与消息生产的最终一致性，特别适用于关键业务场景，如订单处理、支付操作等
+
+### 工作流程
+
+![](./md.assets/transaction_message.png)
+
+<small>[事务消息 - 交互流程](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/transactional-messages)</small>
+
+1. 生产者向 Broker 发送半事务消息（暂不能进行投递的消息）
+2. Broker 收到消息返回确认信息，此时消息被标记为暂不能投递
+3. 生产者执行本地事务
+4. 生产者根据本地事务的执行结果，向 Broker 发送二次确认结果
+    - Commit：Broker 将半事务消息标记为可投递，并投递给消费者
+    - Rollback：Broker 则会丢弃半事务消息
+5. 在异常情况（断网等）下，Broker 长时间未收到生产者发送的二次确认信息，或者收到的二次确认结果为 Unknown 状态，经过固定时间后，Broker 会向生产者发起消息回查，默认最多尝试 15 次，间隔 30 秒，超过次数就会丢弃本次事务消息
+6. 生产者收到回查请求，检查本地事务的执行状态
+7. 生产者根据本地事务的执行状态，再次发送二次确认结果，Broker 按照步骤 4 处理，以此类推
+
+```java
+public class BrokerConfig extends BrokerIdentity {
+    ...
+
+    // 默认触发回查的最短时间间隔
+    private long transactionTimeOut = 6 * 1000;
+
+    /**
+     * The maximum number of times the message was checked, if exceed this value, this message will be discarded.
+     */
+    // 默认最大回查次数
+    private int transactionCheckMax = 15;
+
+    // 默认回查间隔时间
+    private long transactionCheckInterval = 30 * 1000;
+
+    ...
+}
+```
+
+### 简单使用
+
+```java
+@Component
+public class TransactionProducer implements ApplicationRunner {
+
+    @Value("${rocketmq.name-server}")
+    private String nameServer;
+
+    @Value("${rocketmq.producer.group}")
+    private String producerGroup;
+
+    private final TransactionMQProducer transactionMQProducer = new TransactionMQProducer();
+
+    // 需要添加一个线程池，用来检查本地事务状态
+    ExecutorService executorService = new ThreadPoolExecutor(2, 5, 100, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(2000));
+
+    public void init() throws MQClientException {
+        transactionMQProducer.setProducerGroup(producerGroup);
+        transactionMQProducer.setNamesrvAddr(nameServer);
+        // 添加事务监听器
+        transactionMQProducer.setTransactionListener(new TestListener());
+        // 添加检查本地事务状态的线程池
+        transactionMQProducer.setExecutorService(executorService);
+        transactionMQProducer.start();
+        System.out.println("启动");
+    }
+
+    public void send(String topic, String message) throws MQClientException {
+        Message msg = new Message(topic, message.getBytes());
+        // 发送事务消息
+        TransactionSendResult sendResult = transactionMQProducer.sendMessageInTransaction(msg, null);
+        System.out.println(sendResult);
+    }
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        init();
+    }
+}
+```
+
+```java
+public class TestListener implements TransactionListener {
+
+    // 执行本地事务
+    @Override
+    public LocalTransactionState executeLocalTransaction(Message msg, Object arg) {
+        System.out.println("executeLocalTransaction");
+        System.out.println(new String(msg.getBody()));
+        System.out.println(arg);
+        return LocalTransactionState.UNKNOW;
+    }
+
+    // 检查本地事务状态
+    @Override
+    public LocalTransactionState checkLocalTransaction(MessageExt msg) {
+        System.out.println("checkLocalTransaction");
+        System.out.println(msg);
+        System.out.println(new String(msg.getBody()));
+        LocalTransactionState state = this.getState();
+        System.out.println(state);
+        return state;
+    }
+
+    // 模拟本地事务
+    private LocalTransactionState getState() {
+        int i = RandomUtil.randomInt(6);
+        switch (i) {
+            case 0:
+                return LocalTransactionState.COMMIT_MESSAGE;
+            case 1:
+                return LocalTransactionState.ROLLBACK_MESSAGE;
+        }
+        return LocalTransactionState.UNKNOW;
+    }
+}
+```
+
 ## 高性能 / 高吞吐量
 
 ## 存储机制
 
-## 死信队列
+## 死信队列（DLQ）
 
-由于某些原因消息无法被正确地投递，为了确保消息不会被无故地丢弃，一般会将其放入死信队列
+由于某些原因消息无法被正确地投递，为了确保消息不会被无故地丢弃，一般会将其放入死信队列。后续就可以通过查看死信队列中的内容，来分析当时遇到的异常情况，进而可以改善和优化系统
 
-后续就可以通过消费这个死信队列中的内容，来分析当时遇到的异常情况，进而可以改善和优化系统
+![](./md.assets/dlq.png)
+
+<small>[死信消息 - 死信策略](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/dead-letter-messages)</small>
+
+在 RocketMQ 中消息消费失败，会被加入到重试队列中，默认重试 16 次后，就会被加入到死信队列，无法再被消费了
+
+![](./md.assets/retry_level.png)
+
+<small>[消费重试 - 重试间隔时间](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/consumption-retries)</small>
+
+可通过 RocketMQ 的控制台进行死信队列相关的查询和处理
+
+![](./md.assets/dlq_retry.png)
+
+- 死信队列以 `%DLQ%` 开头，拼接上消费者组
+- 重试队列以 `%RETRY%` 开头，拼接上消费者组
 
 ## 参考
 
@@ -672,10 +820,15 @@ msg.setDelayTimeLevel(1);
 - [RocketMQ的push消费方式实现的太聪明了](https://mp.weixin.qq.com/s/opqRf8UjI9rRW_4befWrbA)
 - [面试官再问我如何保证 RocketMQ 不丢失消息,这回我笑了！](https://www.cnblogs.com/goodAndyxublog/p/12563813.html)
 - [【阅读笔记】rocketmq 特性实现 —— 拉取消息长轮询](https://miludeer.github.io/2019/06/07/source-note-rocket-mq-features-long-polling/)
-- [队列（MessageQueue）](https://rocketmq.apache.org/zh/docs/domainModel/03messagequeue)
-- [消费进度管理](https://rocketmq.apache.org/zh/docs/featureBehavior/09consumerprogress/)
+- [队列（MessageQueue）](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/message-queues)
+- [消费进度管理](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/consumer-progress-management)
 - [消息积压的处理](https://www.cnblogs.com/chjxbt/p/11434240.html)
 - [线上消息队列发生积压，如何快速解决？](https://juejin.cn/post/7327124869921636367)
 - [MQ消息积压处理方案](https://www.cnblogs.com/yangyongjie/p/17644874.html)
 - [消息消费失败如何处理？](https://www.51cto.com/article/647598.html)
 - [面试必考：怎样解决线上消息队列积压问题](https://mp.weixin.qq.com/s/w5z25rKxFXOnqakOm2zgMw)
+- [事务消息](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/transactional-messages)
+- [ROCKETMQ的事务消息详解](https://www.ryujung.com/?p=214)
+- [关于 RocketMQ 事务消息的正确打开方式 → 你学废了吗](https://www.cnblogs.com/youzhibing/p/15354713.html)
+- [顺序消息](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/ordered-messages-1)
+- [五张图告诉你 RocketMQ 为什么不使用 Zookeeper 做注册中心](https://www.51cto.com/article/715307.html)
