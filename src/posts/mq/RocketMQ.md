@@ -8,19 +8,22 @@ RocketMQ 是基于 Kafka 改进而来的，很多概念、用法都是相似的�
 
 ![](./md.assets/rocketmq.png)
 
-<small>[RocketMQ保姆级教程 - 工作流程](https://mp.weixin.qq.com/s/4h6VoywgZgnrxMBx-rqCLg)</small>
+<small>[架构设计](https://github.com/apache/rocketmq/blob/develop/docs/cn/architecture.md)</small>
 
 ### NameServer
 
-NameServer 是一个无状态的服务器，主要用来管理 Broker 和路由信息，其实就是一个注册中心
+NameServer 是一个非常简单的 Topic 路由注册中心，支持 Broker 的动态注册与发现，主要有两个功能
 
-Broker 在启动时会将自己的信息注册到 NameServer，生产者和消费者会定期从 NameServer 中获取 Broker 的路由信息，在收发消息时就可通过路由信息找到对应的 Broker
+- Broker 管理
+- 路由信息管理：Broker 信息(IP + 端口等)以及存储所有 Topic 信息
+
+Broker 在启动时会将自己的信息注册到 NameServer，注册成功后，NameServer 中就有了 Topic 与 Broker 的映射关系，生产者和消费者会定期从 NameServer 中获取 Broker 的路由列表，在收发消息时就可通过路由信息找到对应的 Broker
 
 #### 为什么需要 NameServer
 
 没有 NameServer，消费者和生产者直接和 Broker 通信不也行吗？也确实可以，但如果 Broker 挂掉了呢，也好解决，再找一个呗，将生产者和消费者指向新的 Broker，等一等，这不就是 NameServer 在做的事吗
 
-另外，为了保证系统的高可用，系统中可能会有多个 Broker，维护工作的复杂程度也大大上升的，如果仍旧是直连的状态，修改一个 Broker，就要修改对应的多个生产者和消费者，累不累啊
+另外，为了保证系统的高可用，系统中可能会有多个 Broker，维护工作的复杂程度也大大上升的，如果仍旧是直连的状态，修改一个 Broker，就要修改对应的多个生产者和消费者
 
 #### 为什么不使用 Zookeeper 作为注册中心
 
@@ -30,21 +33,40 @@ Broker 在启动时会将自己的信息注册到 NameServer，生产者和消�
 - Broker 集群可以自己实现主从切换，不需要依赖其他插件
 - 引入 Zookeeper 后，还需要对其进行维护
 
-#### 高可用
+#### NameServer 的高可用
 
 NameServer 这么重要，如果挂了，后果岂不是不可设想，如何保证 NameServer 的高可用呢？很简单，一个不行，就多部署几个 NameServer
 
 NameServer 集群是 **去中心化** 的，意味着他没有主节点，节点之间互不通信，可以很好的进行横向扩展
 
+- 为了保证高可用，选择了弱一致性
+
+Broker 在启动时会向每一台 NameServer 注册自己的路由信息，所以每一个 NameServer 实例上面都保存一份完整的路由信息。当某个 NameServer 下线时，Broker 仍可向其他 NameServer 同步其路由信息，生产者和消费者也可动态感知 Broker 的路由信息
+
 每个 Broker 都与所有的 NameServer 保持着长连接，并且每个 Broker 每隔 30 秒会向所有 NameServer 发送心跳，报告自己的存活状态，NameServer 超过 120 秒没收到心跳包，就会认为该 Broker 失活，从路由表中移除该 Broker 的信息
 
-- 为了保证高可用，而选择了弱一致性
+生产者与消费者会随机与 NameServer 集群的某一个节点建立长连接，定期从 NameServer 获取 Topic 路由信息
 
 ### Broker
 
 RocketMQ 的服务节点，即 RocketMQ 服务器
 
 主要负责消息的存储、投递和查询以及服务高可用保证
+
+#### Broker 的高可用
+
+Broker 集群中的节点可分为 Master 与 Slave，Master 支持读和写，Slave 只支持读，Master 会向 Slave 同步消息
+
+Master 与 Slave 的对应关系通过指定相同的 BrokerName，并且通过 BrokerId 区分角色，BrokerId 为 0 表示 Master，非 0 表示 Slave
+
+- 一个 Master 可对应多个 Slave，但是一个 Slave 只能对应一个 Master
+  - 即 Master 是一对多，Slave 是一对一
+- Master 也可以部署多个
+
+- 生产者会与提供 Topic 服务的 Broker 的主节点建立长连接，并定时发送心跳
+- 消费者者会与提供 Topic 服务的 Broker 的主从节点都建立长连接，并定时发送心跳
+
+当 Master 不可用或者繁忙的时候，消费者的读请求会被自动切换到 Slave
 
 ### Producer
 
@@ -55,11 +77,11 @@ RocketMQ 的服务节点，即 RocketMQ 服务器
 注意发送消息指的是生产者发送消息到 Broker，而不是生产者发送消息到生产者
 
 - 同步（Sync）：发出消息后，需等待响应结果
-  - 一般用于重要通知消息
+  - 常用于对可靠性要求高的场景，例如重要消息通知
 - 异步（Async）：发出消息后，无需等待响应，也可指定回调函数，发送成功或失败触发对应的回调函数
-  - 一般用于耗时较长且对响应时间敏感的场景
+  - 常用于耗时较长且对响应时间敏感的场景
 - 单向（One-way）：只负责发送消息，不等待响应且没有回调函数触发
-  - 常用于对可靠性要求不高的场景
+  - 常用于对可靠性要求不高的场景，例如日志消息
 
 ### Consumer Group
 
@@ -80,6 +102,29 @@ RocketMQ 的服务节点，即 RocketMQ 服务器
 
 生产者将消息发送到特定的主题，消费者通过订阅特定的主题获得消息并消费
 
+#### 为什么不建议开启自动创建 Topic
+
+在使用未创建的 Topic 发送消息时，由于 NameServer 中没有该 Topic 的路由信息，所以会拉取名为 TBW102 的 Topic 获取路由信息
+
+- 如果开启了自动创建 Topic，Broker 在启动时创建名为 TBW102 的 Topic
+
+```java
+public static final String AUTO_CREATE_TOPIC_KEY_TOPIC = "TBW102"; // Will be created at broker when isAutoCreateTopicEnable
+```
+
+- 用户指定的读写队列数可能不是预期结果。创建的 Topic 的读队列数和写队列数取值为默认 Topic（TBW102）的读队列数和Produce端设置的队列数的最小值
+
+
+
+
+
+
+
+
+```java
+private volatile int defaultTopicQueueNums = 4;
+```
+
 ### MessageQueue
 
 队列是 RocketMQ 中消息存储和传输的实际容器，也是最小存储单元
@@ -94,6 +139,37 @@ RocketMQ 的服务节点，即 RocketMQ 服务器
 <small>[队列（MessageQueue） - 模型关系](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/message-queues)</small>
 
 > 其实也就是 Kafka 中的 Partition
+
+#### 读队列与写队列
+
+队列在逻辑上可分为两种，读队列和写队列，顾名思义分别用于读和写
+
+- 建议读队列数量 >= 写队列数量，最好是数量相等
+- 在物理层面，只有写队列才会创建文件
+- 设置读写队列数的目的在于方便队列的动态伸缩
+
+> 无用的小知识：创建主题设置读写队列数量时，都可以设置为 0，意味着既不能向 Topic 发送消息，也不能从中消费消息
+
+#### 队列选择算法（消息投递算法）
+
+对于消息该发到主题内的哪个队列中，RocketMQ 提供了两种队列的选择算法，当然你也可以通过实现 MessageQueueSelector 接口，自定义选择算法
+
+##### 轮询
+
+默认的选择算法，按照顺序依次向不同队列发送消息，能保证消息均匀分布
+
+部分 Broker 可能会受限于机器性能或网络波动等原因，投递延迟会比较严重，生产者不能及时发出消息，从而导致生产者出现消息积压
+
+##### 最小投递延迟
+
+每次消息投递的时候会统计投递的时间延迟，在选择队列的时候会优先选择投递延迟时间小的队列，延迟相同才用轮询算法投递。可有效提升消息的投递性能
+
+可能会导致消息分布不均匀，投递延迟小的队列可能会存在大量的消息，以致于出现消息积压的现象
+
+```java
+// 开启最小投递延迟算法
+producer.setSendLatencyFaultEnable(true);
+```
 
 ### Tag
 
@@ -133,12 +209,12 @@ RocketMQ 中某条消息被消费后，并不会直接删除，所以也就无�
 
 - 消费者提交的消费进度是以消费者组为单位的
 
-## 消息模式
+## 消费模式
 
 - 集群（CLUSTERING）：默认模式，同一条消息，只允许被组内某一个消费者消费
 - 广播（BROADCASTING）：同一条消息，能被组内所有消费者消费
 
-## 消费模式（消费顺序）
+## 消费顺序
 
 - 顺序（ORDERLY）：消费者有序的接收消息
   - 即同一时刻只能有一个消费者消费该消息
@@ -508,7 +584,7 @@ defaultMQProducer.send(msg, new SendCallback() {
 flushDiskType = SYNC_FLUSH
 ```
 
-为了保证 Broker 的高可用，通常会部署一个主从架构的 Broker 集群，这时就又分成两种情况
+为了保证 Broker 的高可用，通常会部署一个主从架构的 Broker 集群，这又分成两种情况
 
 - 主节点接收到消息就返回确认响应，再将消息异步复制到从节点
   - 主节点宕机，且未成功刷盘，可能会损失少量消息，性能较好，实时性几乎不受影响
@@ -786,11 +862,106 @@ public class TestListener implements TransactionListener {
 }
 ```
 
-## 高性能 / 高吞吐量
+## 高性能
+
+### 批量发送消息
+
+RocketMQ 支持批量发送消息，可以减少网络通信次数，提高传输效率
+
+- 每条消息的 Topic 必须都得是一样的
+- 不支持延迟消息和事务消息
+- 不论是普通消息还是批量消息，默认总大小不能超过 4 M
+
+### 消息压缩
+
+RocketMQ 在发送消息，发现消息大小超过 4 K，就会对消息进行压缩，减少存储空间占用，减轻网络传输的压力，但压缩和解压都需要消耗 CPU 资源
+
+- 批量消息不会被压缩
+
+Broker 收到压缩后的消息，并不会直接解压，而是直接将压缩消息刷新到磁盘上，消费者获取到消息才会进行解压，也就是说在生产者压缩，在消费者解压
+
+### 高性能网络通信模型
+
+RocketMQ 的 RPC 通信采用 Netty 组件作为底层通信库，遵循了 Reactor 多线程模型，同时又在这之上做了一些扩展和优化
+
+### 零拷贝（Zero-Copy）
+
+零拷贝是一种高效的数据传输技术，它可以将数据从内核空间直接传输到应用程序的内存空间中
+
+传统的数据传输过程通常需要经历多次内存拷贝。首先，从磁盘读取数据，然后将数据从内核空间拷贝到用户空间，再从用户空间拷贝到应用程序的内存中。这些额外的拷贝会消耗大量的 CPU 资源和内存带宽，降低数据传输的效率。零拷贝就是为了避免这些不必要的数据拷贝，能够将数据直接传输到目标内存区域，以提高数据传输的效率
+
+RocketMQ 使用到了 mmap 和 sendfile 的方式来实现零拷贝
+
+### 顺序写
+
+RocketMQ 会将消息按照顺序一条一条地写入文件中，减少了磁头的移动和寻道时间，顺序写比随机写的性能会高很多
+
+- 使用 SSD 的话，顺序写与随机写差距就不是很大了
+
+### 异步处理
+
+RocketMQ 在处理消息时，会采用一些异步操作来优化操作时间，例如异步刷盘、异步主从复制
 
 ## 存储机制
 
-## 死信队列（DLQ）
+消息到达 Broker，会先存放在内存中，然后再根据刷盘策略（同步或异步）刷到磁盘中
+
+RocketMQ 消息被存储在 `/root/store` 目录中，Windows 为 `C:\Users\用户\store`
+
+![](./md.assets/store.png)
+
+消息存储架构主要由三个文件组成
+
+### CommitLog
+
+消息主体以及元数据的存储主体
+
+![](./md.assets/commitlog.png)
+
+- 默认单个文件大小为固定的 1 G
+- 文件名长度为 20 位，左边补零，剩余为起始偏移量
+  - 1 G 的大小为 1073741824 字节，所以第二个文件名为 `00000000001073741824`，以此类推
+- 消息主要是顺序写入日志文件，当文件满了，写入下一个文件
+
+### ConsumeQueue
+
+消息消费索引，引入的目的主要是提高消息消费的性能
+
+RocketMQ 采用的是基于主题的订阅模式，消息消费是针对主题进行的，如果要以遍历的方式，从 CommitLog 文件中查找特定主题的消息是非常低效的
+
+![](./md.assets/rocketmq_design_1.png)
+
+<small>[设计(design) - 1 消息存储](https://github.com/apache/rocketmq/blob/develop/docs/cn/design.md)</small>
+
+消费者可根据 ConsumeQueue 来查找待消费的消息，ConsumeQueue 作为消费消息的索引，保存了指定主题下的队列消息在 CommitLog 中的相关信息
+
+- commitLogOffset：起始物理偏移量 offset
+- msgSize：消息大小
+- tagsCode：消息 Tag 的 HashCode 值
+
+ConsumeQueue 文件可以看成是基于 Topic 的 CommitLog 索引文件，所以 ConsumeQueue 文件在 `store/consumequeue` 是以 `{topic}/{queueId}/{fileName}` 三层组织结构存储的
+
+![](./md.assets/cosumequeue.png)
+
+ConsumeQueue 中每个条目为固定的 20 字节
+
+- commitLogOffset：8 字节
+- msgSize：4 字节
+- tagsCode: 8 字节
+
+单个文件由 30 万个条目组成，可以像数组一样随机访问每一个条目，每个 ConsumeQueue 文件大小为固定的 600 万字节，也就是 5.72 M
+
+### IndexFile
+
+索引文件，提供了一种可以通过 key 或时间区间来查询消息的方法，存储在 `store/index` 中
+
+![](./md.assets/indexfile.png)
+
+文件名以创建时的时间戳命名，每个文件为固定的 400 M，可以保存 2000 万个索引
+
+- IndexFile 的底层存储设计为在文件系统中实现 HashMap 结构，所以 RocketMQ 的索引文件底层实现为哈希索引
+
+## 死信队列（DLQ，Dead-Letter Queue）
 
 由于某些原因消息无法被正确地投递，为了确保消息不会被无故地丢弃，一般会将其放入死信队列。后续就可以通过查看死信队列中的内容，来分析当时遇到的异常情况，进而可以改善和优化系统
 
@@ -813,6 +984,8 @@ public class TestListener implements TransactionListener {
 
 ## 参考
 
+- [架构设计](https://github.com/apache/rocketmq/blob/develop/docs/cn/architecture.md)
+- [设计(design)](https://github.com/apache/rocketmq/blob/develop/docs/cn/design.md)
 - [RocketMQ常见问题总结](https://javaguide.cn/high-performance/message-queue/rocketmq-questions.html)
 - [[万字长文]RocketMQ介绍及基本概念](https://mp.weixin.qq.com/s/IBlTQeRevtYLoV4_bc7xgg)
 - [面渣逆袭：RocketMQ二十三问](https://mp.weixin.qq.com/s/IvBt3tB_IWZgPjKv5WGS4A)
@@ -832,3 +1005,4 @@ public class TestListener implements TransactionListener {
 - [关于 RocketMQ 事务消息的正确打开方式 → 你学废了吗](https://www.cnblogs.com/youzhibing/p/15354713.html)
 - [顺序消息](https://help.aliyun.com/zh/apsaramq-for-rocketmq/cloud-message-queue-rocketmq-5-x-series/developer-reference/ordered-messages-1)
 - [五张图告诉你 RocketMQ 为什么不使用 Zookeeper 做注册中心](https://www.51cto.com/article/715307.html)
+- [RocketMQ为什么这么快？我从源码中扒出了10大原因！](https://mp.weixin.qq.com/s/y1-A-SHAkGdg9IOTeUtPxg)
