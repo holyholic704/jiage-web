@@ -1,3 +1,13 @@
+---
+date: 2024-07-01
+category:
+  - 消息队列
+tag:
+  - RocketMQ
+excerpt: RocketMQ 在 Docker 或 Linux 环境下的安装与运行，包括与 Spring Boot 的整合
+order: 99
+---
+
 # RocketMQ 安装与运行
 
 ## Windows 环境下安装
