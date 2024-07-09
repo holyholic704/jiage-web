@@ -1,0 +1,10 @@
+将一个Topic下的多个队列(queue)，在同一个消费者组(consumer group)(gid)下的多个消费者实例(consumer instance)之间进行重新分配
+
+将一个Topic下的多个队列(或称之为分区)，在同一个消费者组(consumer group)下的多个消费者实例(consumer instance)之间进行重新分配
+
+Rebalance的本意是把一个topic的queue分配给合适的consumer，本意其实是为了提升消息的并行处理能力
+
+一个Topic下5个队列，在只有1个消费者的情况下，那么这个消费者将负责处理这5个队列的消息。如果此时我们增加一个消费者，那么可以给其中一个消费者分配2个队列，给另一个分配3个队列，从而提升消息的并行处理能力
+
+订阅Topic的队列数量变化
+消费者组信息变化
