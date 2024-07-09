@@ -4,7 +4,7 @@ category:
   - 消息队列
 tag:
   - RocketMQ
-excerpt: RocketMQ 在 Docker 或 Linux 环境下的安装与运行，包括与 Spring Boot 的整合
+excerpt: 为什么不建议开启自动创建 Topic，可能会出现哪些问题
 order: 99
 ---
 
@@ -19,13 +19,6 @@ public static final String AUTO_CREATE_TOPIC_KEY_TOPIC = "TBW102"; // Will be cr
 ```
 
 - 用户指定的读写队列数可能不是预期结果。创建的 Topic 的读队列数和写队列数取值为默认 Topic（TBW102）的读队列数和Produce端设置的队列数的最小值
-
-
-
-
-
-
-
 
 ```java
 private volatile int defaultTopicQueueNums = 4;
