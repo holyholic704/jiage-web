@@ -8,7 +8,7 @@ excerpt: RocketMQ 在 Docker 或 Linux 环境下的安装与运行，包括与 S
 order: 99
 ---
 
-# Rebalance
+# Rebalance 机制
 
 Rebalance（再均衡）机制指的是将一个 Topic 下的多个队列，在同一个消费者组下的多个消费者实例之间进行重新分配，以提升消息的并行处理能力
 
