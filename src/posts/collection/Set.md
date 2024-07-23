@@ -1,3 +1,63 @@
+# Set
+
+![](./md.assets/set.png)
+
+```java
+public interface Set<E> extends Collection<E> {
+
+    // 返回集合中的元素数量
+    int size();
+
+    // 集合是否为空
+    boolean isEmpty();
+
+    // 集合是否包含给定的元素
+    boolean contains(Object o);
+
+    // 获取一个迭代器
+    Iterator<E> iterator();
+
+    // 转数组
+    Object[] toArray();
+
+    // 转数组
+    <T> T[] toArray(T[] a);
+
+    // 添加一个元素
+    boolean add(E e);
+
+    // 移除一个元素
+    boolean remove(Object o);
+
+    // 判断是否包含给定的集合中的所有元素
+    boolean containsAll(Collection<?> c);
+
+    // 将给定的集合里的元素添加到集合中
+    boolean addAll(Collection<? extends E> c);
+
+    // 从当前的集合中保留给定的集合中的元素
+    boolean retainAll(Collection<?> c);
+
+    // 移除给定的集合中的所有元素
+    boolean removeAll(Collection<?> c);
+
+    // 清空
+    void clear();
+
+    // 判断两个集合是否相等
+    boolean equals(Object o);
+
+    // 获取当前集合的hashCode
+    int hashCode();
+
+    // 返回一个可分割的迭代器，并行遍历的迭代器
+    @Override
+    default Spliterator<E> spliterator() {
+        return Spliterators.spliterator(this, Spliterator.DISTINCT);
+    }
+}
+```
+
 ## HashSet
 
 ### 成员变量
@@ -8,7 +68,7 @@ HashSet 就是利用 HashMap 实现的，创建一个 HashSet 其实就是创建
 // 存放元素的集合
 private transient HashMap<E,Object> map;
 
-// 作为value的值，所有元素共用一个
+// 作为 value 的值，所有元素共用一个
 private static final Object PRESENT = new Object();
 ```
 
@@ -55,42 +115,10 @@ public HashSet(int initialCapacity) {
     map = new HashMap<>(initialCapacity);
 }
 
-// dummy参数没有具体的意思，只是一个标记，用来区分HashSet(int initialCapacity, float loadFactor)
-// 该构造方法没有被public修饰，所以是供内部使用的，用于对LinkedHashSet的支持
+// dummy 参数没有具体的意思，只是一个标记，用来区分 HashSet(int initialCapacity, float loadFactor)
+// 该构造方法没有被 public 修饰，所以是供内部使用的，用于对 LinkedHashSet 的支持
 HashSet(int initialCapacity, float loadFactor, boolean dummy) {
     map = new LinkedHashMap<>(initialCapacity, loadFactor);
-}
-```
-
-### 常用方法
-
-```java
-public Iterator<E> iterator() {
-    return map.keySet().iterator();
-}
-
-public int size() {
-    return map.size();
-}
-
-public boolean isEmpty() {
-    return map.isEmpty();
-}
-
-public boolean contains(Object o) {
-    return map.containsKey(o);
-}
-
-public boolean add(E e) {
-    return map.put(e, PRESENT)==null;
-}
-
-public boolean remove(Object o) {
-    return map.remove(o)==PRESENT;
-}
-
-public void clear() {
-    map.clear();
 }
 ```
 
@@ -161,5 +189,47 @@ public class TreeSet<E> extends AbstractSet<E>
         this(s.comparator());
         addAll(s);
     }
+}
+```
+
+## 线程安全的 Set
+
+在 Java 中有 2 个常用的线程安全的 Set
+
+- CopyOnWriteArraySet 基于写时复制技术，内部就直接使用的 CopyOnWriteArrayList 实现
+- SynchronizedSap 位于 Collections 工具类中，可以通过 `Collections.synchronizedSet` 方法将一个非线程安全的 Set 包装为 SynchronizedSe，。内部也是通过 `synchronized` 关键字来保证线程安全
+
+### CopyOnWriteArraySet
+
+```java
+public class CopyOnWriteArraySet<E> extends AbstractSet<E>
+        implements java.io.Serializable {
+
+    private final CopyOnWriteArrayList<E> al;
+
+    public CopyOnWriteArraySet() {
+        al = new CopyOnWriteArrayList<E>();
+    }
+
+    public CopyOnWriteArraySet(Collection<? extends E> c) {
+        if (c.getClass() == CopyOnWriteArraySet.class) {
+            @SuppressWarnings("unchecked") CopyOnWriteArraySet<E> cc =
+                (CopyOnWriteArraySet<E>)c;
+            al = new CopyOnWriteArrayList<E>(cc.al);
+        }
+        else {
+            al = new CopyOnWriteArrayList<E>();
+            al.addAllAbsent(c);
+        }
+    }
+}
+```
+
+那么 Set 的不可重复性怎么保证呢
+
+```java
+// add 方法中调用 CopyOnWriteArrayList 的 addIfAbsent，不存在才能添加
+public boolean add(E e) {
+    return al.addIfAbsent(e);
 }
 ```
