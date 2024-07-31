@@ -98,7 +98,29 @@ nohup sh bin/mqbroker -n localhost:9876 &
 tail -f ~/logs/rocketmqlogs/proxy.log 
 ```
 
-记得放开 10912、10911、10909 这 3 个端口
+除了 9876，记得放开 10911、10909、10912 这 3 个端口
+
+- 10911：Broker 对外服务的监听端口
+- 10909：偏移 -2，Broker 对外服务的监听端口
+- 10912：偏移 +1，用于 Broker 主从同步
+
+### 修改运行时内存
+
+RocketMQ 默认启动时，设置的堆内存大小为 4G，有些低配置的机器可能会启动失败，所以可以按需修改堆内存的大小
+
+```shell
+# 修改 runserver.sh，找到下面这句并修改，runbroker.sh 同理
+JAVA_OPT="${JAVA_OPT} -server -Xms4g -Xmx4g -Xmn2g -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=320m"
+```
+
+- 附上我的配置，仅供参考
+
+```shell
+# -Xms 与 -Xmx 为堆内存的最小与最大值，最好设置为相同的值，避免内存抖动
+# -Xmn 为新生代的大小，推荐为堆内存的 3/8，一般设置为堆内存的一半
+# -XX:MetaspaceSize 为元空间（方法区）的大小
+JAVA_OPT="${JAVA_OPT} -server -Xms512m -Xmx512m -Xmn256m -XX:MetaspaceSize=64m -XX:MaxMetaspaceSize=160m"
+```
 
 ## 与 Spring Boot 整合
 
@@ -250,3 +272,6 @@ public class ManualConsumer implements ApplicationRunner {
 - [RocketMQ笔记（二）SpringBoot整合RocketMQ发送异步消息](https://blog.csdn.net/Alian_1223/article/details/136591837)
 - [SpringBoot整合RocketMQ，老鸟们都是这么玩的！](https://www.cnblogs.com/jianzh5/p/17301690.html)
 - [Springboot整合RocketMQ简单使用](https://www.cnblogs.com/qlqwjy/p/16175864.html)
+- [RocketMQ服务中各端口号说明](https://blog.csdn.net/Taiyii/article/details/125526511)
+- [RocketMQ 内存优化](https://blog.csdn.net/weixin_38989540/article/details/84999248)
+- [6.1 多端口监听](http://www.tianshouzhi.com/api/tutorials/rocketmq/417)
