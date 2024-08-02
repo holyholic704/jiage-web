@@ -64,7 +64,7 @@ nacos.core.auth.plugin.nacos.token.secret.key=5ZOl5YS/5Lus5ZCN5Y+r5LiB55yfIFNtb2
 
 ```shell
 # 理论上一个集群应该创建 3 个节点
-127.0.0.1:8848
+192.168.16.101:8848
 192.168.16.102:8848
 192.168.16.103:8848
 ```

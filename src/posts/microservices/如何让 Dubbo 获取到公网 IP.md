@@ -48,7 +48,7 @@ order: 99
 
 谁能料想到我最不看好的地方，却最终解决了我的问题呢
 
-[Why dubbo provider always registers to a wrong address?](https://stackoverflow.com/questions/56153450/why-dubbo-provider-always-registers-to-a-wrong-address)，这位老哥就在抱怨为什么 Dubbo 总是注册错的 IP 地址，看了他的 IP 地址，想必也是遇到了 Dubbo 注册时注册了内网 IP。下面给出的方案也是简单粗暴，禁用环回地址，一般来说也就是 127.0.0.1
+[Why dubbo provider always registers to a wrong address?](https://stackoverflow.com/questions/56153450/why-dubbo-provider-always-registers-to-a-wrong-address)，这位老哥就在抱怨为什么 Dubbo 总是注册错的 IP 地址，看了他的 IP 地址，想必也是遇到了 Dubbo 注册时注册了内网 IP。下面给出的方案也是简单粗暴，禁用环回地址，一般来说也就是 `127.0.0.1`
 
 ```shell
 # 查看网卡配置
@@ -64,7 +64,23 @@ ifconfig lo shutdown
 
 禁用了环回地址，再启动服务端，就能看到日志中打印的 `current host: 公网IP`，本地再测试一下，果然能调用到远程服务了
 
-那么，代价是什么？之后就不能再使用 127.0.0.1 了，换成公网 IP 就行了，当然可能还会有些隐性的问题，不过，这也算解决了我的问题，虽然有些瑕疵，但已经足够满足我目前的需求。所以这是一个仅供参考的解决方案，实际开发中还是不要轻易尝试
+那么，代价是什么？之后就不能再使用 `127.0.0.1` 了，换成公网 IP 就行了，当然可能还会有些隐性的问题，不过，这也算解决了我的问题，虽然有些瑕疵，但已经足够满足我目前的需求。所以这是一个仅供参考的解决方案，实际开发中还是不要轻易尝试
+
+## 代价来了
+
+这是几天后的更新，禁用环回地址还是切切实实的带来了一些麻烦。我原以为只是不能再使用 `127.0.0.1` 了，但其实内网 IP、`0.0.0.0`、`localhost` 等也都是不能使用的，这就导致了某些软件（主要是 RocketMQ）在启动时，需要我手动的修改为公网 IP。虽然修改也不难，但增加了排查问题的难度，我也是花了很多时间才确定了是我禁用了环回地址的原因
+
+之后安装的软件肯定是越来越多的，难道要每个都修改一遍吗，如果有某个软件是不支持修改 IP 的呢，粗暴的禁用环回地址并不算得一个好方案，解决一个问题又冒出十个问题
+
+## 目前算是满意的解决方案
+
+最近也是因为上述提到的问题，所以想再尝试尝试其他的方法，还算比较幸运，不一会就找到了一个个人算是满意的解决方案：虚拟网卡。之前也想到过，一是自己不知如何操作，二是向人求助时说让我加个物理网卡试试，我就默认了虚拟网卡可能不行。现在有时间，也没有那么心急，所以就尝试了一下配置虚拟网卡，非常出乎我的意料，首先是配置很简单，没想象中那么难，最重要的是一下子就成功了，甚至都没反应过来
+
+```shell
+ifconfig eth0:0 公网IP up
+```
+
+就这一行，就是这么简单。不过这是临时的，重启网卡和服务器都会失效，网上有教修改网卡配置文件，但对我的服务器不适用，之前也学会了添加开机脚本，所以也就将这一行放了进去，就不担心重启失效了。至于网卡的重启，基本上不会遇到，谁用的好好的没事重启网卡干什么
 
 ## 参考
 
@@ -72,3 +88,4 @@ ifconfig lo shutdown
 - [主机地址自定义暴露](https://cn.dubbo.apache.org/zh-cn/overview/mannual/java-sdk/advanced-features-and-usage/others/set-host/)
 - [Why dubbo provider always registers to a wrong address?](https://stackoverflow.com/questions/56153450/why-dubbo-provider-always-registers-to-a-wrong-address)
 - [Linux系统如何设置开机自动运行脚本？](https://www.cnblogs.com/yychuyu/p/13095732.html)
+- [Linux添加虚拟网卡的多种方法](https://www.cnblogs.com/navysummer/p/10870307.html)

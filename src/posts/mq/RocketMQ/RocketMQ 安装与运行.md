@@ -264,6 +264,17 @@ public class ManualConsumer implements ApplicationRunner {
 }
 ```
 
+## RocketMQ Dashboard
+
+RocketMQ Dashboard 提供了对 RocketMQ 的监控，还包括对主题、生产者、消费者等的管理
+
+```shell
+docker pull apacherocketmq/rocketmq-dashboard:latest
+
+# 运行参数也可在启动后设置
+docker run -d --name rocketmq-dashboard -e "JAVA_OPTS=-Drocketmq.namesrv.addr=127.0.0.1:9876" -p 8080:8080 -t apacherocketmq/rocketmq-dashboard:latest
+```
+
 ## 参考
 
 - [Docker 部署 RocketMQ](https://rocketmq.apache.org/zh/docs/quickStart/02quickstartWithDocker)
@@ -275,3 +286,4 @@ public class ManualConsumer implements ApplicationRunner {
 - [RocketMQ服务中各端口号说明](https://blog.csdn.net/Taiyii/article/details/125526511)
 - [RocketMQ 内存优化](https://blog.csdn.net/weixin_38989540/article/details/84999248)
 - [6.1 多端口监听](http://www.tianshouzhi.com/api/tutorials/rocketmq/417)
+- [RocketMQ Dashboard](https://rocketmq.apache.org/zh/docs/deploymentOperations/04Dashboard)
