@@ -266,7 +266,7 @@ public class ManualConsumer implements ApplicationRunner {
 
 ## RocketMQ Dashboard
 
-RocketMQ Dashboard 提供了对 RocketMQ 的监控，还包括对主题、生产者、消费者等的管理
+RocketMQ Dashboard 提供了对 RocketMQ 的监控，还包括对主题、生产者、消费者等的管理，包含前端模块，推荐使用 Docker 运行
 
 ```shell
 docker pull apacherocketmq/rocketmq-dashboard:latest
