@@ -1,3 +1,14 @@
+---
+date: 2024-08-03
+category:
+  - 服务器
+tag:
+  - Nginx
+  - 环境配置
+excerpt: Linux 环境安装 Nginx，基本的使用配置
+order: 99
+---
+
 # Linux 环境安装 Nginx
 
 ## 安装
