@@ -20,7 +20,7 @@ order: 99
 
 ## 失败的尝试
 
-于是我上网查资料，如何让 Dubbo 注册服务时注册自己的公网 IP，找到了一篇 [主机绑定](https://cn.dubbo.apache.org/zh-cn/docs/advanced/hostname-binding/)，还是官方的，看着挺有希望的，照着改了 hosts、Dubbo 配置，甚至添加 JVM 运行参数 `-DDUBBO_IP_TO_REGISTRY=公网IP`，还是以失败告终
+于是我上网查资料，如何让 Dubbo 注册服务时注册自己的公网 IP，找到了一篇 [主机绑定](https://cn.dubbo.apache.org/zh-cn/docs/advanced/hostname-binding/)，还是官方的，看着挺有希望的，照着改了 hosts、Dubbo 配置，添加 JVM 运行参数 `-DDUBBO_IP_TO_REGISTRY=公网IP`，还是以失败告终
 
 ### 修改网卡配置
 
