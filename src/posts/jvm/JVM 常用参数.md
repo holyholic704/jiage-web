@@ -21,7 +21,7 @@ order: 99
   - `堆内存 = 老年代 + 新生代`
   - `新生代 = Eden 区 + Survivor0 区 + Survivor1 区`
 - `-XX:NewSize`：新生代大小，常与 `-XX:MaxNewSize` 组合使用
-  - `-Xmn` 相当于 `-XX:NewSize` 与 `-XX:MaxNewSize` 设置成相同的大小
+  - `-Xmn` 等价于 `-XX:NewSize` 与 `-XX:MaxNewSize` 的结合
 - `-XX:NewRatio`：新生代与老年代的比值
   - 默认值为 2，即老年代是新生代的 2 倍
 - `-XX:SurvivorRatio`：一个 Survivor 区与 Eden 区的比值
@@ -80,7 +80,7 @@ JDK1.8 默认使用 Parallel 收集器，该收集器默认开启了 AdaptiveSiz
 
 所以如果使用的是 JDK1.8，且没有进行特殊的设置，就经常会出现 Survivor 区很小的情况。如果 Survivor 区空间无法容纳 Young GC 后的存活的对象，这些对象会直接晋升到老年代，老年代的占用越来越大，直到空间不足触发 Full GC
 
-- 目前在使用的被称为 From Survivor 区，GC 时被移动到的为 To Survivor 区，而 Survivor0（S0）、Survivor1（1）是实际上的空间划分（也依旧是逻辑上的划分）
+- 目前在使用的被称为 From Survivor 区，GC 时被移动到的为 To Survivor 区，而 Survivor0（S0）、Survivor1（S1）是实际上的空间划分（也依旧是逻辑上的划分）
 
 ```shell
 # 开启自适应调节策略
@@ -96,7 +96,7 @@ JDK1.8 默认使用 Parallel 收集器，该收集器默认开启了 AdaptiveSiz
 
 - `-XX:MetaspaceSize`：元空间默认大小
   - 默认 20.79M
-  - 设置的值作为触发 Full GC 的阈值，该值只对触发有效，触发 Full GC 后，JVM 会计算新的值，之后的 Full GC 就跟 MetaspaceSize 没有关系了
+  - 设置的值作为触发 Full GC 的阈值，该值只对触发有效，触发 Full GC 后，JVM 会计算新的值，之后的 Full GC 就跟设置的 MetaspaceSize 没有关系了
 - `-XX:MaxMetaspaceSize`：元空间最大值
   - 默认值为 -1，表示无穷大，受到系统内存的限制
 
