@@ -1,0 +1,103 @@
+# Redis 是如何存储数据的
+
+在 Redis 中，使用了一个哈希表保存所有键值对
+
+## redisDb
+
+数据库的结构，结构体里存放了指向了 dict 结构的指针
+
+```c
+typedef struct redisDb {
+    dict *dict;                 /* The keyspace for this DB */
+    dict *expires;              /* Timeout of keys with a timeout set */
+    dict *blocking_keys;        /* Keys with clients waiting for data (BLPOP)*/
+    dict *blocking_keys_unblock_on_nokey;   /* Keys with clients waiting for
+                                             * data, and should be unblocked if key is deleted (XREADEDGROUP).
+                                             * This is a subset of blocking_keys*/
+    dict *ready_keys;           /* Blocked keys that received a PUSH */
+    dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
+    int id;                     /* Database ID */
+    long long avg_ttl;          /* Average TTL, just for stats */
+    unsigned long expires_cursor; /* Cursor of the active expire cycle. */
+    list *defrag_later;         /* List of key names to attempt to defrag one by one, gradually. */
+    clusterSlotToKeyMapping *slots_to_keys; /* Array of slots to keys. Only used in cluster mode (db 0). */
+} redisDb;
+```
+
+## dict
+
+结构体里存放了 2 个哈希表，正常情况下都是用哈希表 1，哈希表 2 只有在 rehash 的时候才用
+
+```c
+struct dict {
+    dictType *type;
+
+    dictEntry **ht_table[2];
+    unsigned long ht_used[2];
+
+    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+
+    /* Keep small vars at end for optimal (minimal) struct padding */
+    int16_t pauserehash; /* If >0 rehashing is paused (<0 indicates coding error) */
+    signed char ht_size_exp[2]; /* exponent of size. (size = 1<<exp) */
+
+    void *metadata[];           /* An arbitrary number of bytes (starting at a
+                                 * pointer-aligned address) of size as defined
+                                 * by dictType's dictEntryBytes. */
+};
+```
+
+## dictEntry
+
+哈希表节点的结构，结构里存放了 `*key` 和 `*val` 指针，`*key` 指向的是 String 对象，而 `*val` 则可以指向 String 对象，也可以指向集合类型的对象
+
+```c
+struct dictEntry {
+    void *key;
+    union {
+        void *val;
+        uint64_t u64;
+        int64_t s64;
+        double d;
+    } v;
+    struct dictEntry *next;     /* Next entry in the same hash bucket. */
+    void *metadata[];           /* An arbitrary number of bytes (starting at a
+                                 * pointer-aligned address) of size as returned
+                                 * by dictType's dictEntryMetadataBytes(). */
+};
+```
+
+## redisObject
+
+`*key` 和 `*val` 指针指向的都是 Redis 对象（redisObject），所以 Redis 中的 key 对象和 value 对象其实都是 redisObject
+
+```c
+#define LRU_BITS 24
+
+struct redisObject {
+    unsigned type:4;
+    unsigned encoding:4;
+    unsigned lru:LRU_BITS; /* LRU time (relative to global lru_clock) or
+                            * LFU data (least significant 8 bits frequency
+                            * and most significant 16 bits access time). */
+    int refcount;
+    void *ptr;
+};
+```
+
+- `type`：对象类型
+- `encoding`：该类型的编码方式
+- `lru`：存储对象最后一次被访问的时间
+  - 使用 LRU 策略时，单位为秒
+  - 使用 LFU 策略时，高 16 位存储时间，单位分钟，低 8 位存储访问频率
+- `refcount`：引用计数
+  - 初始化值为 1，该对象被使用时加 1，不再被使用则减 1
+- `*ptr`：指向对象实际的数据结构的指针
+
+## 哈希冲突
+
+Redis 使用了 **链地址法 + 再哈希法** 来解决哈希冲突。详见哈希表的哈希冲突
+
+## 参考
+
+- [Redis源代码剖析--对象object](https://www.cnblogs.com/cxchanpin/p/7355106.html)

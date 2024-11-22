@@ -5,7 +5,7 @@ category:
 tag:
   - Redis
 excerpt: 使用 RedisTemplate 执行 Lua 脚本
-order: 13
+order: 99
 ---
 
 # 使用 RedisTemplate 执行 Lua 脚本
