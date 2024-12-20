@@ -142,9 +142,9 @@ JDK1.8 默认使用 Parallel 收集器，该收集器默认开启了 AdaptiveSiz
 
 ### GC 日志
 
-- `-Xloggc:<filename>`：日志文件的输出路径
 - `-XX:+PrintGC`：打印 GC 的简要信息
 - `-XX:+PrintGCDetails`：打印 GC 的详情
+- `-Xloggc:<filename>`：日志文件的输出路径
 
 ```shell
 # PrintGC
